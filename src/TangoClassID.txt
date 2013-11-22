@@ -1,0 +1,11 @@
+/**
+ * Device Class Identification:
+ * 
+ * Class Name   :	TMCM610_motoraxis
+ * Contact      :	filip.lindau@maxlab.lu.se
+ * Class Family :	Motion
+ * Platform     :	All Platforms
+ * Bus          :	Serial Line
+ * Manufacturer :	Trinamic
+ * Reference    :	TMCM610
+ */
