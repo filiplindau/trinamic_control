@@ -1,0 +1,11 @@
+/**
+ * Device Class Identification:
+ * 
+ * Class Name   :	Trinamic_TMCM610_DS2
+ * Contact      :	filip.lindau@maxlab.lu.se
+ * Class Family :	Motion
+ * Platform     :	All Platforms
+ * Bus          :	Serial Line
+ * Manufacturer :	Trinamic
+ * Reference    :	TMCM610
+ */

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/users/!svn/ver/1112/fysi-fli/Trinamic_control/src
+END
+Trinamic_control.py
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/users/!svn/ver/1291/fysi-fli/Trinamic_control/src/Trinamic_control.py
+END
+Trinamic_TMCL_DS.py
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/users/!svn/ver/1255/fysi-fli/Trinamic_control/src/Trinamic_TMCL_DS.py
+END
+Trinamic_TMCM610_DS.py
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/users/!svn/ver/1293/fysi-fli/Trinamic_control/src/Trinamic_TMCM610_DS.py
+END
+Trinamic_TMCM610_DS2.py
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/users/!svn/ver/1291/fysi-fli/Trinamic_control/src/Trinamic_TMCM610_DS2.py
+END
+TangoClassID.txt
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/users/!svn/ver/1291/fysi-fli/Trinamic_control/src/TangoClassID.txt
+END
+TMCM610_motoraxis.py
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/users/!svn/ver/1292/fysi-fli/Trinamic_control/src/TMCM610_motoraxis.py
+END
