@@ -448,6 +448,16 @@ class TMCM6110MotoraxisDS(Device):
                     self.info_stream("Changing state to MOVING")
                     self.set_state(pt.DevState.MOVING)
                     self.set_status(status)
+            elif state in ["fault"]:
+                if old_state != state:
+                    self.info_stream("Changing state to FAULT")
+                    self.set_state(pt.DevState.FAULT)
+                    self.set_status(status)
+            elif state in ["alarm"]:
+                if old_state != state:
+                    self.info_stream("Changing state to ALARM")
+                    self.set_state(pt.DevState.ALARM)
+                    self.set_status(status)
             else:
                 self.info_stream("Unknown state,setting UNKNOWN")
                 self.set_state(pt.DevState.UNKNOWN)

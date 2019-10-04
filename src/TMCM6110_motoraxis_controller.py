@@ -93,6 +93,7 @@ class TangoReadAttributeTask(Task):
                     return
 
             retries += 1
+            time.sleep(0.3)
         self.result = attr
 
 
@@ -415,7 +416,7 @@ class TMCM6110MotoraxisController(object):
         with self.data_lock:
             self.current_state = "on"
             self.status = "On"
-        self.monitor_attributes(0.2)
+        self.monitor_attributes(0.3)
 
     def monitor_attributes(self, delay):
         logger.info("Starting monitor of motor attributes")
@@ -480,7 +481,10 @@ class TMCM6110MotoraxisController(object):
         # logger.debug("Position: {0}".format(result.get_result(wait=False)))
         with self.data_lock:
             self.position = result.get_result(wait=False)
-            self.position.value = self.position.value / self.step_per_unit
+            try:
+                self.position.value = self.position.value / self.step_per_unit
+            except AttributeError:
+                pass
 
     def get_position(self):
         with self.data_lock:
@@ -504,15 +508,37 @@ class TMCM6110MotoraxisController(object):
         motor_state = result.get_result(wait=False)
         with self.data_lock:
             self.motor_state = motor_state
+            if result.is_cancelled():
+                logger.info("Motor device cancelled: {0}".format(motor_state))
+                self.current_state = "fault"
+                self.status = "Parent motor device"
+            elif isinstance(motor_state, Exception):
+                logger.info("Motor device got exception: {0}".format(motor_state))
+                self.current_state = "fault"
+            else:
+                try:
+                    if abs(self.speed.value) > 0:
+                        self.current_state = "moving"
+                    else:
+                        self.current_state = "on"
+                    if self.limitswitches[0].value or self.limitswitches[1].value:
+                        self.current_state = "alarm"
+                except AttributeError:
+                    self.current_state = "fault"
+
+    def get_state(self):
+        with self.data_lock:
+            value = copy.copy(self.current_state)
+            status = copy.copy(self.status)
+        return value, status
 
     def _read_speed(self, result):
         with self.data_lock:
             self.speed = result.get_result(wait=False)
-            self.speed.value = self.speed.value / self.step_per_unit
-            if abs(self.speed.value) > 0:
-                self.current_state = "moving"
-            else:
-                self.current_state = "on"
+            try:
+                self.speed.value = self.speed.value / self.step_per_unit
+            except AttributeError:
+                pass
 
     def get_speed(self):
         with self.data_lock:
@@ -534,7 +560,10 @@ class TMCM6110MotoraxisController(object):
     def _read_acceleration(self, result):
         with self.data_lock:
             self.acceleration = result.get_result(wait=False)
-            self.acceleration.value = self.acceleration.value / self.step_per_unit
+            try:
+                self.acceleration.value = self.acceleration.value / self.step_per_unit
+            except AttributeError:
+                pass
 
     def get_acceleration(self):
         with self.data_lock:
@@ -584,12 +613,6 @@ class TMCM6110MotoraxisController(object):
         logger.info("New step_per_unit: {0}".format(value))
         with self.data_lock:
             self.step_per_unit = value
-
-    def get_state(self):
-        with self.data_lock:
-            value = copy.copy(self.current_state)
-            status = copy.copy(self.status)
-        return value, status
 
 
 if __name__ == "__main__":
