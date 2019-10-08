@@ -86,7 +86,8 @@ class TangoReadAttributeTask(Task):
                 self.logger.exception("{0}: Tango error reading {1} on {2}: ".format(self,
                                                                                      self.attribute_name,
                                                                                      self.device_name))
-                attr = None
+                # attr = None
+                attr = e
                 self.result = e
                 if not self.ignore_tango_error:
                     self.cancel()
@@ -228,9 +229,12 @@ class DeviceHandler(object):
         except KeyError:
             # Maybe this should just raise an exception instead of auto-adding:
             task = self.add_device(device_name)
-            dev = task.get_result(wait=True, timeout=self.timeout)
-            if task.is_cancelled():
-                raise pt.DevFailed(dev)
+            try:
+                dev = task.get_result(wait=True, timeout=self.timeout)
+                if task.is_cancelled():
+                    raise pt.DevFailed(dev)
+            except AttributeError:
+                pass
 
         return dev
 
@@ -355,8 +359,9 @@ class TMCM6110MotoraxisController(object):
     def init_motor_settings(self, delay=0):
         logger.info("Initializing motor with settings")
         with self.data_lock:
+            if self.current_state == "unknown":
+                self.status = "Initializing motor parameters"
             self.current_state = "init"
-            self.status = "Initializing motor parameters"
 
             task_list = list()
 
@@ -400,22 +405,51 @@ class TMCM6110MotoraxisController(object):
                 t = TangoWriteAttributeTask(attr_name, self.dev_name, self.device_handler, value)
                 task_list.append(t)
 
-            seq_task = SequenceTask(task_list, "init motor task", callback_list=[self._init_motor_settings_done])
+            seq_task = SequenceTask(task_list, "init_motor_task", callback_list=[self._init_motor_settings_done])
             seq_task.start()
         with self.task_lock:
             self.task_list.append(seq_task)
 
     def _init_motor_settings_done(self, result):
         logger.debug("Init motor done. Result: {0}".format(result.get_result(False)))
-        with self.task_lock:
-            self.task_list.remove(result)
         if result.is_cancelled():
+            # with self.task_lock:
+            #     pop_list = list()
+            #     for t in self.task_list:
+            #         if t.get_name() == "init_motor_task":
+            #             logger.debug("Found init task {0}".format(t))
+            #             pop_list.append(t)
+            #     for t in pop_list:
+            #         t.cancel()
+            #         self.task_list.remove(t)
             logger.error("Could not init, testing again in 3 s")
+
+            if result.get_result(False) is None:
+                logger.error("Init returned NONE, re-init")
+                self.init_motor_settings(3.5)
+                return
+
+            e = result.get_result(False)[1]
+            try:
+                logger.debug("Result: {0}".format(e[0].reason))
+                # logger.debug("Result: {0}".format(e[0].reason == "API_CantConnectToDevice"))
+                if e[0].reason in ["API_DeviceNotExported", "API_CantConnectToDevice"]:
+                    logger.debug("Parent device not started")
+                    with self.data_lock:
+                        self.status = "Parent device not started"
+            except AttributeError:
+                logger.error("Attr error {0}".format(e))
+                with self.data_lock:
+                    self.status = "Attr error {0}".format(e)
             self.init_motor_settings(3.0)
             return
+
         with self.data_lock:
             self.current_state = "on"
             self.status = "On"
+        with self.task_lock:
+            self.task_list = list()
+
         self.monitor_attributes(0.3)
 
     def monitor_attributes(self, delay):
@@ -471,7 +505,7 @@ class TMCM6110MotoraxisController(object):
 
         attr_name = "state"
         t = TangoReadAttributeTask(attr_name, self.dev_name, self.device_handler, "state_read",
-                                   callback_list=[self._read_state])
+                                   callback_list=[self._read_state], ignore_tango_error=True)
         tr = RepeatTask(t, -1, delay)
         with self.task_lock:
             self.task_list.append(tr)
@@ -498,6 +532,7 @@ class TMCM6110MotoraxisController(object):
                 self.target_position = value
             else:
                 attr_name = "positionm{0}".format(self.axis)
+                self.target_position = value
                 step_value = value * self.step_per_unit
                 t = TangoWriteAttributeTask(attr_name, self.dev_name, self.device_handler, step_value, "write_pos")
                 t.start()
@@ -511,20 +546,24 @@ class TMCM6110MotoraxisController(object):
             if result.is_cancelled():
                 logger.info("Motor device cancelled: {0}".format(motor_state))
                 self.current_state = "fault"
-                self.status = "Parent motor device"
+                self.status = "Parent motor device problem. {0}".format(motor_state)
             elif isinstance(motor_state, Exception):
                 logger.info("Motor device got exception: {0}".format(motor_state))
                 self.current_state = "fault"
+                self.status = "Parent motor device problem. {0}".format(motor_state)
             else:
                 try:
                     if abs(self.speed.value) > 0:
                         self.current_state = "moving"
+                        self.status = "Moving to pos {0}".format(self.target_position)
                     else:
                         self.current_state = "on"
-                    if self.limitswitches[0].value or self.limitswitches[1].value:
-                        self.current_state = "alarm"
+                        self.status = "On"
+                    # if self.limitswitches[0].value or self.limitswitches[1].value:
+                    #     self.current_state = "alarm"
                 except AttributeError:
                     self.current_state = "fault"
+                    self.status = "Attribute not read from parent device"
 
     def get_state(self):
         with self.data_lock:

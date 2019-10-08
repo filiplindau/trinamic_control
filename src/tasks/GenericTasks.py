@@ -314,8 +314,8 @@ class Task(object):
                 do_cancel = True
 #            if self.run_thread.isAlive():
 #                self.run_thread.raise_exc(self.CancelException)
-        if do_cancel:
-            self.emit()
+#         if do_cancel:
+#             self.emit()
 
     def is_cancelled(self):
         return self.cancelled
@@ -382,6 +382,7 @@ class DelayTask(Task):
     def __init__(self, delay, name=None, trigger_dict=dict(), callback_list=list()):
         Task.__init__(self, name, trigger_dict=trigger_dict, callback_list=callback_list)
         self.delay = delay
+        self.logger.setLevel(logging.ERROR)
 
     def action(self):
         self.logger.info("{0} Starting delay of {1} s".format(self, self.delay))
@@ -476,17 +477,20 @@ class SequenceTask(Task):
     def __init__(self, task_list, name=None, timeout=None, trigger_dict=dict(), callback_list=list()):
         Task.__init__(self, name, timeout=timeout, trigger_dict=trigger_dict, callback_list=callback_list)
         self.task_list = task_list
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.ERROR)
 
     def action(self):
         self.logger.info("{0} running task sequence of length {1}.".format(self, len(self.task_list)))
         res = list()
 
         for t in self.task_list:
+            self.logger.info("====================================\n"
+                             "{0}: starting task {1}.".format(self.name, t.get_name()))
             t.start()
             res.append(t.get_result(wait=True))
             # Check if cancelled or error..
             if t.is_cancelled() is True:
+                self.logger.info("{0}: task {1} cancelled.".format(self.name, t.get_name()))
                 self.result = res
                 self.cancel()
                 return
@@ -494,6 +498,10 @@ class SequenceTask(Task):
                 return
 
         self.result = res
+
+    def emit(self):
+        self.logger.debug("{0} emitting to {1}".format(self.name, self.callback_list))
+        Task.emit(self)
 
 
 class BagOfTasksTask(Task):
